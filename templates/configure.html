@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configure Frame.io Uploader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400">Configuration</h1>
+            <p class="text-gray-400 mt-1">Edit your Frame.io connection and server settings</p>
+        </header>
+
+        <form id="config-form" class="space-y-6">
+            <!-- Frame.io Credentials -->
+            <div class="bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
+                <h2 class="text-xl font-semibold text-white mb-4">Frame.io / Adobe IMS Credentials</h2>
+                <p class="text-gray-400 text-sm mb-4">These identify your app to Frame.io. Get them from the Adobe Developer Console.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Client ID</label>
+                        <input type="text" name="frameio.client_id" required
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Client Secret</label>
+                        <input type="password" name="frameio.client_secret" required
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="block text-sm text-gray-400 mb-1">Folder ID <span class="text-gray-500">(optional — advanced)</span></label>
+                    <input type="text" name="frameio.folder_id" 
+                           class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" placeholder="Leave empty to auto-create after login" />
+                    <p class="text-xs text-gray-400 mt-1">
+                        If left empty, after logging in you will be guided to select a workspace/project 
+                        and the app will automatically create a folder named <strong class="text-gray-200">qr_code_uploader</strong>.
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Advanced: Found in your Frame.io project URL: /projects/.../folders/<strong class="text-gray-300">this-id</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Server Settings -->
+            <div class="bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
+                <h2 class="text-xl font-semibold text-white mb-4">Server Settings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Host</label>
+                        <input type="text" name="server.host"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Port</label>
+                        <input type="number" name="server.port"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">SSL Cert</label>
+                        <input type="text" name="server.ssl_certfile"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">SSL Key</label>
+                        <input type="text" name="server.ssl_keyfile"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-gray-400 mb-1">Log File</label>
+                        <input type="text" name="server.log_file"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-gray-400 mb-1">Display Message File Path</label>
+                        <input type="text" name="server.display_message_path"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                        <p class="text-xs text-gray-500 mt-1">Path to the file storing the display message (default: data/message.txt)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OAuth Settings -->
+            <div class="bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
+                <h2 class="text-xl font-semibold text-white mb-4">OAuth Settings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-gray-400 mb-1">Redirect URI</label>
+                        <input type="text" name="oauth.redirect_uri"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-gray-400 mb-1">Auth URL</label>
+                        <input type="text" name="oauth.auth_url"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-gray-400 mb-1">Token URL</label>
+                        <input type="text" name="oauth.token_url"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-gray-400 mb-1">Scope</label>
+                        <input type="text" name="oauth.scope"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Share Settings -->
+            <div class="bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
+                <h2 class="text-xl font-semibold text-white mb-4">Share Settings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Share Expiration (days)</label>
+                        <input type="number" name="share.expiration_days"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                        <p class="text-xs text-gray-500 mt-1">Number of days until share links expire</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Folders -->
+            <div class="bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700">
+                <h2 class="text-xl font-semibold text-white mb-4">Folders</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Watch Folder</label>
+                        <input type="text" name="folders.watch"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Processed Folder</label>
+                        <input type="text" name="folders.processed"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Failed Folder</label>
+                        <input type="text" name="folders.failed"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">QR Codes Folder</label>
+                        <input type="text" name="folders.qr_codes"
+                               class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <a href="/"
+                   class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200">
+                    Back to Control Panel
+                </a>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200 shadow-lg">
+                    Save Configuration
+                </button>
+            </div>
+            <div id="config-feedback" class="text-center text-sm"></div>
+        </form>
+    </div>
+
+    <script>
+        const DEFAULTS = {
+            frameio: { client_id: '', client_secret: '', folder_id: '' },
+            server: { host: '0.0.0.0', port: 8000, ssl_certfile: 'cert.pem', ssl_keyfile: 'key.pem', log_file: 'data/automation.log', display_message_path: 'data/message.txt' },
+            folders: { templates: 'templates', watch: 'data/watch_folder', processed: 'data/processed_folder', failed: 'data/failed_folder', qr_codes: 'data/qr_codes' },
+            oauth: { redirect_uri: 'https://localhost:8000/callback', auth_url: 'https://ims-na1.adobelogin.com/ims/authorize/v2', token_url: 'https://ims-na1.adobelogin.com/ims/token/v3', scope: 'offline_access,openid,email,profile,additional_info.roles' },
+            share: { expiration_days: 7 }
+        };
+
+        async function loadConfig() {
+            try {
+                const resp = await fetch('/api/config/raw');
+                if (!resp.ok) throw new Error('Failed to load config');
+                const data = await resp.json();
+                applyConfigToForm(data);
+            } catch (e) {
+                console.error('Failed to load config:', e);
+                applyConfigToForm(DEFAULTS);
+            }
+        }
+
+        function applyConfigToForm(data) {
+            const form = document.getElementById('config-form');
+            for (const [section, values] of Object.entries(data)) {
+                for (const [key, value] of Object.entries(values)) {
+                    const input = form.querySelector(`[name="${section}.${key}"]`);
+                    if (input) input.value = value;
+                }
+            }
+        }
+
+        document.getElementById('config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const payload = {};
+
+            for (const [name, value] of formData.entries()) {
+                const lastDot = name.lastIndexOf('.');
+                const section = name.substring(0, lastDot);
+                const key = name.substring(lastDot + 1);
+                if (!payload[section]) payload[section] = {};
+                payload[section][key] = value;
+            }
+
+            // Ensure templates folder is included (uses default if not in form)
+            if (!payload.folders) payload.folders = {};
+            payload.folders.templates = DEFAULTS.folders.templates;
+
+            // Ensure display_message_path is included
+            if (!payload.server) payload.server = {};
+            if (!payload.server.display_message_path) {
+                payload.server.display_message_path = DEFAULTS.server.display_message_path;
+            }
+
+            const feedback = document.getElementById('config-feedback');
+            feedback.textContent = 'Saving...';
+            feedback.className = 'text-center text-sm text-yellow-400';
+
+            try {
+                const resp = await fetch('/api/config/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    feedback.textContent = '✓ Configuration saved. Reloading...';
+                    feedback.className = 'text-center text-sm text-green-400';
+                    setTimeout(() => location.href = '/', 1200);
+                } else {
+                    const rawText = await resp.text();
+                    let message = rawText || 'Save failed';
+                    try {
+                        const data = JSON.parse(rawText);
+                        message = data.message || data.detail || message;
+                    } catch (_) {
+                        // Fall back to the raw response body when the server returns HTML/text.
+                    }
+                    throw new Error(message);
+                }
+            } catch (e) {
+                feedback.textContent = `✗ Error: ${e.message}`;
+                feedback.className = 'text-center text-sm text-red-400';
+            }
+        });
+
+        loadConfig();
+    </script>
+</body>
+</html>

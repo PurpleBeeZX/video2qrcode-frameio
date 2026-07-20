@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Folder Setup — Frame.io Uploader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400">Frame.io Folder Setup</h1>
+            <p class="text-gray-400 mt-1">Choose where to store uploaded files</p>
+        </header>
+
+        <!-- Step progress indicator -->
+        <div class="flex items-center justify-center mb-8 space-x-2 text-sm">
+            <span id="step-1-indicator" class="bg-blue-600 text-white px-3 py-1 rounded-full">1. Workspace</span>
+            <span class="text-gray-600">→</span>
+            <span id="step-2-indicator" class="bg-gray-700 text-gray-400 px-3 py-1 rounded-full">2. Project</span>
+            <span class="text-gray-600">→</span>
+            <span id="step-3-indicator" class="bg-gray-700 text-gray-400 px-3 py-1 rounded-full">3. Confirm</span>
+        </div>
+
+        <!-- Current folder name input -->
+        <div class="bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700 mb-6">
+            <h2 class="text-lg font-semibold text-white mb-3">Target Folder Name</h2>
+            <p class="text-gray-400 text-sm mb-3">Enter the folder name to create or use in your selected project.</p>
+            <input type="text" id="folder-name-input" value="{{ folder_name }}"
+                   class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:outline-none focus:border-blue-500" />
+        </div>
+
+        <!-- Step 1: Workspace Selection -->
+        <div id="step-1" class="bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700 mb-4">
+            <h2 class="text-lg font-semibold text-white mb-3">Select Workspace</h2>
+            <p class="text-gray-400 text-sm mb-4">Loading workspaces from your Frame.io account...</p>
+            <div id="workspace-list" class="space-y-2">
+                <div class="text-center text-gray-500 py-4">
+                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div>
+                    <p>Loading workspaces...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Project Selection (hidden initially) -->
+        <div id="step-2" class="hidden bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700 mb-4">
+            <h2 class="text-lg font-semibold text-white mb-3">Select Project</h2>
+            <p class="text-gray-400 text-sm mb-4">Choose the project where "{{ folder_name }}" will be created or located.</p>
+            <div id="project-list" class="space-y-2">
+                <div class="text-center text-gray-500 py-4">
+                    <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div>
+                    <p>Loading projects...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Confirm & Auto-create -->
+        <div id="step-3" class="hidden bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-700 mb-4">
+            <h2 class="text-lg font-semibold text-white mb-3">Confirm Setup</h2>
+            <div id="confirm-details" class="text-gray-300 space-y-2 mb-4">
+                <p><span class="text-gray-400">Workspace:</span> <span id="confirm-workspace" class="text-white font-medium">-</span></p>
+                <p><span class="text-gray-400">Project:</span> <span id="confirm-project" class="text-white font-medium">-</span></p>
+                <p><span class="text-gray-400">Folder:</span> <span id="confirm-folder" class="text-white font-medium">{{ folder_name }}</span></p>
+            </div>
+            <button id="confirm-btn"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 shadow-lg">
+                ✓ Create / Use Folder & Start System
+            </button>
+            <div id="confirm-feedback" class="text-center text-sm mt-3"></div>
+        </div>
+
+        <!-- Error display -->
+        <div id="error-display" class="hidden bg-red-900 bg-opacity-50 border border-red-500 rounded-xl p-4 mb-4">
+            <p id="error-text" class="text-red-300 text-sm"></p>
+        </div>
+
+        <!-- Back / Retry -->
+        <div class="text-center mt-4">
+            <button id="back-btn" class="hidden text-gray-400 hover:text-white text-sm underline"
+                    onclick="location.reload()">Start over</button>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let selectedWorkspaceId = null;
+        let selectedWorkspaceName = null;
+        let selectedProjectId = null;
+        let selectedProjectName = null;
+        let selectedRootFolderId = null;
+
+        // DOM refs
+        const folderNameInput = document.getElementById('folder-name-input');
+        const wsList = document.getElementById('workspace-list');
+        const projList = document.getElementById('project-list');
+        const step1 = document.getElementById('step-1');
+        const step2 = document.getElementById('step-2');
+        const step3 = document.getElementById('step-3');
+        const s1ind = document.getElementById('step-1-indicator');
+        const s2ind = document.getElementById('step-2-indicator');
+        const s3ind = document.getElementById('step-3-indicator');
+        const cw = document.getElementById('confirm-workspace');
+        const cp = document.getElementById('confirm-project');
+        const cf = document.getElementById('confirm-folder');
+        const feedback = document.getElementById('confirm-feedback');
+        const errorDisplay = document.getElementById('error-display');
+        const errorText = document.getElementById('error-text');
+        const backBtn = document.getElementById('back-btn');
+
+        function showError(msg) {
+            errorDisplay.classList.remove('hidden');
+            errorText.textContent = msg;
+        }
+
+        function hideError() {
+            errorDisplay.classList.add('hidden');
+        }
+
+        function updateIndicators(step) {
+            [s1ind, s2ind, s3ind].forEach((el, i) => {
+                if (i + 1 === step) {
+                    el.className = 'bg-blue-600 text-white px-3 py-1 rounded-full';
+                } else if (i + 1 < step) {
+                    el.className = 'bg-green-600 text-white px-3 py-1 rounded-full';
+                } else {
+                    el.className = 'bg-gray-700 text-gray-400 px-3 py-1 rounded-full';
+                }
+            });
+        }
+
+        // Step 1: Load workspaces
+        async function loadWorkspaces() {
+            hideError();
+            updateIndicators(1);
+            try {
+                const resp = await fetch('/api/setup/workspaces');
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    throw new Error(data.detail || 'Failed to load workspaces');
+                }
+                const data = await resp.json();
+                const workspaces = data.workspaces || [];
+                
+                if (workspaces.length === 0) {
+                    wsList.innerHTML = '<div class="text-center text-yellow-400 py-4">No workspaces found in your account.</div>';
+                    return;
+                }
+
+                wsList.innerHTML = workspaces.map(ws => `
+                    <button class="workspace-btn w-full text-left bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg px-4 py-3 transition duration-200"
+                            data-id="${ws.id}" data-name="${escapeHtml(ws.name)}">
+                        <span class="text-white font-medium">${escapeHtml(ws.name)}</span>
+                    </button>
+                `).join('');
+
+                document.querySelectorAll('.workspace-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        selectedWorkspaceId = btn.dataset.id;
+                        selectedWorkspaceName = btn.dataset.name;
+                        // Highlight selected
+                        document.querySelectorAll('.workspace-btn').forEach(b => b.classList.remove('border-blue-500'));
+                        btn.classList.add('border-blue-500', 'border-2');
+                        loadProjects(selectedWorkspaceId);
+                    });
+                });
+            } catch (e) {
+                showError(e.message);
+                wsList.innerHTML = `<div class="text-center text-red-400 py-4">
+                    <p>Failed to load workspaces.</p>
+                    <button onclick="loadWorkspaces()" class="mt-2 text-blue-400 hover:text-blue-300 underline">Retry</button>
+                </div>`;
+            }
+        }
+
+        // Step 2: Load projects for selected workspace
+        async function loadProjects(workspaceId) {
+            hideError();
+            updateIndicators(2);
+            step2.classList.remove('hidden');
+            projList.innerHTML = '<div class="text-center text-gray-500 py-4"><div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div><p>Loading projects...</p></div>';
+
+            try {
+                const resp = await fetch(`/api/setup/projects?workspace_id=${workspaceId}`);
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    throw new Error(data.detail || 'Failed to load projects');
+                }
+                const data = await resp.json();
+                const projects = data.projects || [];
+
+                if (projects.length === 0) {
+                    projList.innerHTML = `<div class="text-center text-yellow-400 py-4">
+                        <p>No projects found in this workspace.</p>
+                        <button onclick="loadWorkspaces()" class="mt-2 text-blue-400 hover:text-blue-300 underline">Choose a different workspace</button>
+                    </div>`;
+                    return;
+                }
+
+                projList.innerHTML = projects.map(proj => `
+                    <button class="project-btn w-full text-left bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg px-4 py-3 transition duration-200"
+                            data-id="${proj.id}" data-name="${escapeHtml(proj.name)}" data-root-folder="${proj.root_folder_id}">
+                        <span class="text-white font-medium">${escapeHtml(proj.name)}</span>
+                    </button>
+                `).join('');
+
+                document.querySelectorAll('.project-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        selectedProjectId = btn.dataset.id;
+                        selectedProjectName = btn.dataset.name;
+                        selectedRootFolderId = btn.dataset.rootFolder;
+                        // Highlight selected
+                        document.querySelectorAll('.project-btn').forEach(b => b.classList.remove('border-blue-500'));
+                        btn.classList.add('border-blue-500', 'border-2');
+                        showConfirmStep();
+                    });
+                });
+            } catch (e) {
+                showError(e.message);
+                projList.innerHTML = `<div class="text-center text-red-400 py-4">
+                    <p>Failed to load projects.</p>
+                    <button onclick="loadProjects('${workspaceId}')" class="mt-2 text-blue-400 hover:text-blue-300 underline">Retry</button>
+                </div>`;
+            }
+        }
+
+        // Step 3: Show confirmation
+        function showConfirmStep() {
+            updateIndicators(3);
+            step3.classList.remove('hidden');
+            const folderName = folderNameInput.value.trim() || '{{ folder_name }}';
+            cw.textContent = selectedWorkspaceName;
+            cp.textContent = selectedProjectName;
+            cf.textContent = folderName;
+            backBtn.classList.remove('hidden');
+            step3.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Confirm: auto-create/find folder
+        document.getElementById('confirm-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('confirm-btn');
+            const folderName = folderNameInput.value.trim() || '{{ folder_name }}';
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Setting up folder...';
+            feedback.textContent = 'Contacting Frame.io...';
+            feedback.className = 'text-center text-sm text-yellow-400';
+            hideError();
+
+            try {
+                const resp = await fetch('/api/setup/auto-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workspace_id: selectedWorkspaceId,
+                        project_id: selectedProjectId,
+                        root_folder_id: selectedRootFolderId,
+                        folder_name: folderName,
+                    }),
+                });
+
+                const data = await resp.json();
+
+                if (resp.ok) {
+                    feedback.textContent = `✓ ${data.message}. Redirecting to control panel...`;
+                    feedback.className = 'text-center text-sm text-green-400';
+                    btn.textContent = '✓ Complete!';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1500);
+                } else {
+                    throw new Error(data.detail || data.message || 'Setup failed');
+                }
+            } catch (e) {
+                showError(e.message || 'Failed to set up folder');
+                feedback.textContent = '';
+                btn.disabled = false;
+                btn.textContent = '✓ Create / Use Folder & Start System';
+            }
+        });
+
+        // Update confirm folder name live
+        folderNameInput.addEventListener('input', () => {
+            document.getElementById('confirm-folder').textContent = folderNameInput.value.trim() || '{{ folder_name }}';
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load on start
+        loadWorkspaces();
+    </script>
+</body>
+</html>

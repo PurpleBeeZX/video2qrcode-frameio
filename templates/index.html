@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frame.io QR Code Automation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-400">Frame.io QR Code Automation</h1>
+            <p class="text-gray-400 mt-1">Upload MP4s &rarr; Auto-upload to Frame.io &rarr; Generate QR codes</p>
+            <div class="mt-4 flex items-center justify-center gap-3">
+                <a href="/customer" target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-lg">
+                    Open Customer Display
+                </a>
+                <a href="/configure"
+                   class="inline-flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-lg">
+                    ⚙️ Configure
+                </a>
+            </div>
+        </header>
+
+        <!-- Connection Status Card -->
+        <div id="status-card" class="bg-gray-800 rounded-xl shadow-lg p-5 mb-4 border border-gray-700">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold mb-1">Connection Status</h2>
+                    <p id="status-text" class="text-xl font-bold text-yellow-400">
+                        ⏳ Waiting for Staff Login
+                    </p>
+                </div>
+                <div id="login-button-container">
+                    <a href="/login"
+                       class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200 shadow-lg">
+                        Log in with Frame.io
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Override Notice Banner -->
+        <div id="override-banner" class="hidden bg-yellow-900 bg-opacity-50 border-2 border-yellow-500 rounded-xl p-4 mb-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <span class="text-2xl mr-3">🔒</span>
+                    <div>
+                        <h3 class="text-lg font-bold text-yellow-300">Manual Screen Lock Active</h3>
+                        <p class="text-yellow-100 text-sm">New uploads are queueing up for display.</p>
+                    </div>
+                </div>
+                <button id="release-screen-btn"
+                        class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-lg">
+                    Release Screen
+                </button>
+            </div>
+        </div>
+
+        <!-- Incomplete Config Warning Banner -->
+        <div id="incomplete-config-banner" class="hidden bg-yellow-900 bg-opacity-50 border-2 border-yellow-500 rounded-xl p-4 mb-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <span class="text-2xl mr-3">⚠️</span>
+                    <div>
+                        <h3 class="text-lg font-bold text-yellow-300">Configuration Incomplete</h3>
+                        <p class="text-yellow-100 text-sm">Please configure your Frame.io credentials to enable uploads.</p>
+                    </div>
+                </div>
+                <a href="/configure"
+                   class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-lg">
+                    Configure Now
+                </a>
+            </div>
+        </div>
+
+        <!-- Display Message Control -->
+        <div id="display-message-control" class="bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-700 mb-4">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex-1">
+                    <label class="block text-sm text-gray-400 mb-1">Display Message (shown on customer screen)</label>
+                    <input
+                        type="text"
+                        id="display-message-input"
+                        placeholder="Enter message to display on customer screen..."
+                        class="w-full bg-gray-700 text-gray-100 px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+                    />
+                </div>
+                <button
+                    id="update-message-btn"
+                    type="button"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 shadow-lg h-fit mt-6"
+                >
+                    Update Display
+                </button>
+            </div>
+            <div id="message-feedback" class="text-xs text-center mt-2"></div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Left Column (2/3): QR History -- most frequently used by staff -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden">
+                    <div class="bg-gray-750 px-6 py-3 border-b border-gray-700">
+                        <h2 class="text-lg font-semibold">📋 Uploaded Videos (QR History)</h2>
+                        <p class="text-xs text-gray-400 mt-1">Click "Display" to show a QR on the customer screen</p>
+                    </div>
+
+                    <!-- Search Filter -->
+                    <div class="p-3 border-b border-gray-700 flex flex-row gap-2">
+                        <input
+                            type="text"
+                            id="qr-search-seqnum"
+                            placeholder="🔢 Sequence (e.g. 5, 5-10, >10)..."
+                            class="flex-1 bg-gray-700 text-gray-100 px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            id="qr-search-timecode"
+                            placeholder="⏱️ Timecode (e.g. 20260706_135800)..."
+                            class="flex-1 bg-gray-700 text-gray-100 px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+                        />
+                        <input
+                            type="text"
+                            id="qr-search-video"
+                            placeholder="🎬 Video name..."
+                            class="flex-1 bg-gray-700 text-gray-100 px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+                        />
+                    </div>
+
+                    <!-- QR Codes Table with scrolling -->
+                    <div class="overflow-x-auto" style="max-height: 600px; overflow-y: auto;">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-700 text-gray-300 sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-semibold">Seq</th>
+                                    <th class="px-3 py-2 text-left font-semibold">Timecode <span class="text-xs font-normal text-gray-400">(yyyy/mm/dd)</span></th>
+                                    <th class="px-3 py-2 text-left font-semibold">Video Name</th>
+                                    <th class="px-3 py-2 text-center font-semibold">Status</th>
+                                    <th class="px-3 py-2 text-center font-semibold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="qr-table-body" class="divide-y divide-gray-700">
+                                <tr id="qr-empty-state">
+                                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                                        <p>No QR codes yet</p>
+                                        <p class="text-xs mt-1">QR codes will appear here after uploads</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="px-4 py-2 bg-gray-750 border-t border-gray-700 text-xs text-gray-400">
+                        Total: <span id="qr-total-count">0</span> QR codes
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column (1/3): Stats + Queue + Uploading -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-gray-800 rounded-xl p-3 border border-gray-700 text-center">
+                        <p class="text-gray-400 text-xs">Processed</p>
+                        <p id="processed-count" class="text-xl font-bold text-green-400">0</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-3 border border-gray-700 text-center">
+                        <p class="text-gray-400 text-xs">QR Codes</p>
+                        <p id="qr-count" class="text-xl font-bold text-blue-400">0</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-3 border border-gray-700 text-center">
+                        <p class="text-gray-400 text-xs">Failed</p>
+                        <p id="failed-count" class="text-xl font-bold text-red-400">0</p>
+                    </div>
+                </div>
+
+                <!-- Currently Uploading -->
+                <div class="bg-gray-800 rounded-xl shadow-lg border border-yellow-600 overflow-hidden">
+                    <div class="bg-gray-750 px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold">⏳ Currently Uploading</h2>
+                            <p class="text-xs text-gray-400 mt-0.5">File being processed</p>
+                        </div>
+                        <span id="uploading-status" class="badge badge-idle text-xs">Idle</span>
+                    </div>
+                    <div class="p-3">
+                        <div id="uploading-list" class="space-y-2">
+                            <p class="text-gray-500 text-sm text-center py-2">No upload in progress</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Queue -->
+                <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden">
+                    <div class="bg-gray-750 px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold">📤 Upload Queue</h2>
+                            <p class="text-xs text-gray-400 mt-0.5">Waiting to upload</p>
+                        </div>
+                        <span id="queue-status" class="badge badge-idle text-xs">Idle</span>
+                    </div>
+                    <div class="p-3">
+                        <div id="queue-list" class="space-y-2">
+                            <p class="text-gray-500 text-sm text-center py-2">No files in queue</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shutdown Button -->
+        <div class="text-center mb-6">
+            <button id="shutdown-btn"
+                class="bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-8 rounded-lg shadow-lg transition duration-200">
+                🛑 Shutdown Server
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-8 text-gray-500 text-sm">
+            <p>Frame.io V4 QR Code Automation &mdash; Running on localhost:8000</p>
+        </footer>
+    </div>
+
+    <script>
+        // Global state
+        let manualOverride = false;
+        let selectedQRPath = null;
+        let qrHistoryData = [];
+
+        async function pollStats() {
+            try {
+                const resp = await fetch('/api/stats');
+                const data = await resp.json();
+                document.getElementById('processed-count').textContent = data.processed || 0;
+                document.getElementById('qr-count').textContent = data.qr_codes || 0;
+                document.getElementById('failed-count').textContent = data.failed || 0;
+            } catch (e) {
+                console.error('Stats poll error:', e);
+            }
+        }
+
+        async function fetchQRHistory(timecode = '', videoName = '', seqnum = '') {
+            try {
+                const params = new URLSearchParams();
+                if (timecode) params.append('timecode', timecode);
+                if (videoName) params.append('video_name', videoName);
+                if (seqnum) params.append('seqnum', seqnum);
+                const url = params.toString() ? `/api/qr-history?${params.toString()}` : '/api/qr-history';
+                const resp = await fetch(url);
+                const data = await resp.json();
+                qrHistoryData = data.qr_codes || [];
+                renderQRTable(qrHistoryData);
+            } catch (e) {
+                console.error('QR history fetch error:', e);
+            }
+        }
+
+        function extractSeqNum(filename) {
+            const withoutExt = filename.replace('.png', '');
+            const parts = withoutExt.split('_');
+            if (parts.length >= 2 && parts[1].match(/^\d+$/)) {
+                return parseInt(parts[1], 10);
+            }
+            return null;
+        }
+
+        function parseQRFilename(filename) {
+            const withoutExt = filename.replace('.png', '');
+            const seqNum = extractSeqNum(filename);
+            const timecodeRaw = withoutExt.substring(0, 14);
+            let videoName = '';
+            if (seqNum !== null) {
+                const afterTimecode = withoutExt.substring(15);
+                const afterSeqIdx = afterTimecode.indexOf('_') + 1;
+                videoName = afterTimecode.substring(afterSeqIdx);
+            } else {
+                videoName = withoutExt.substring(15);
+            }
+            if (videoName.startsWith('_')) {
+                videoName = videoName.substring(1);
+            }
+            try {
+                if (timecodeRaw.length === 14) {
+                    const year = timecodeRaw.substring(0, 4);
+                    const month = timecodeRaw.substring(4, 6);
+                    const day = timecodeRaw.substring(6, 8);
+                    const hour = timecodeRaw.substring(8, 10);
+                    const minute = timecodeRaw.substring(10, 12);
+                    const second = timecodeRaw.substring(12, 14);
+                    const dateObj = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}`);
+                    if (!isNaN(dateObj.getTime())) {
+                        const datetimeStr = `${year}/${month}/${day} ${hour}:${minute}:${second}`;
+                        return { timecode: datetimeStr, videoName: videoName };
+                    }
+                }
+                return { timecode: timecodeRaw, videoName: videoName };
+            } catch (e) {
+                return { timecode: timecodeRaw, videoName: videoName };
+            }
+        }
+
+        function renderQRTable(qrCodes) {
+            const tbody = document.getElementById('qr-table-body');
+            const countSpan = document.getElementById('qr-total-count');
+            countSpan.textContent = qrCodes.length;
+
+            if (qrCodes.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="qr-empty-state">
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                            <p>No QR codes found</p>
+                            <p class="text-xs mt-1">Upload a video to generate QR codes</p>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = qrCodes.map(qr => {
+                const { timecode, videoName } = parseQRFilename(qr.filename);
+                const seq = qr.seqnum;
+                const isSelected = selectedQRPath === qr.qr_path;
+                const rowClass = isSelected ? 'bg-blue-900 bg-opacity-40 border-l-4 border-blue-500' : 'hover:bg-gray-700';
+                const buttonText = isSelected ? 'Deselect' : 'Display';
+                const buttonClass = isSelected
+                    ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white';
+
+                let statusBadge = '';
+                if (qr.status === 'queuing') {
+                    statusBadge = '<span class="inline-flex items-center gap-1 text-orange-400 text-xs font-medium"><span class="inline-block w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>Queuing</span>';
+                } else if (qr.status === 'uploading') {
+                    statusBadge = '<span class="inline-flex items-center gap-1 text-yellow-400 text-xs font-medium"><span class="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>Uploading</span>';
+                } else {
+                    statusBadge = '<span class="inline-flex items-center gap-1 text-green-400 text-xs font-medium"><span class="inline-block w-2 h-2 bg-green-400 rounded-full"></span>Ready</span>';
+                }
+
+                const seqText = seq !== null && seq !== undefined ? String(seq) : '';
+                return `
+                <tr class="${rowClass} transition duration-150">
+                    <td class="px-3 py-2 text-gray-300 whitespace-nowrap font-mono text-xs">${escapeHtml(seqText)}</td>
+                    <td class="px-3 py-2 text-gray-300 whitespace-nowrap">${escapeHtml(timecode)}</td>
+                    <td class="px-3 py-2 text-gray-300 break-all">${escapeHtml(videoName)}</td>
+                    <td class="px-3 py-2 text-center">${statusBadge}</td>
+                    <td class="px-3 py-2 text-center">
+                        <button
+                            onclick="displayQRFromTable('${qr.qr_path}')"
+                            class="${buttonClass} text-white text-xs font-medium py-1.5 px-4 rounded transition duration-200">
+                            ${buttonText}
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function displayQRFromTable(qrPath) {
+            try {
+                if (selectedQRPath === qrPath) {
+                    const resp = await fetch('/api/staff/clear-override', { method: 'POST' });
+                    if (resp.ok) {
+                        selectedQRPath = null;
+                        renderQRTable(qrHistoryData);
+                    }
+                    return;
+                }
+                const resp = await fetch('/api/staff/select-qr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qr_path: qrPath }),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    selectedQRPath = qrPath;
+                    renderQRTable(qrHistoryData);
+                } else {
+                    alert('Failed to display QR: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error('Display QR error:', e);
+                alert('Error displaying QR: ' + e.message);
+            }
+        }
+
+        async function checkOverrideStatus() {
+            try {
+                const resp = await fetch('/api/customer/qr');
+                const data = await resp.json();
+                const banner = document.getElementById('override-banner');
+                if (data.manual_override) {
+                    banner.classList.remove('hidden');
+                    manualOverride = true;
+                } else {
+                    banner.classList.add('hidden');
+                    manualOverride = false;
+                }
+            } catch (e) {
+                console.error('Override status check error:', e);
+            }
+        }
+
+        document.getElementById('release-screen-btn').addEventListener('click', async () => {
+            try {
+                const resp = await fetch('/api/staff/clear-override', { method: 'POST' });
+                if (resp.ok) {
+                    selectedQRPath = null;
+                    checkOverrideStatus();
+                    renderQRTable(qrHistoryData);
+                } else {
+                    alert('Failed to clear override: ' + (data.detail || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error('Clear override error:', e);
+                alert('Error clearing override: ' + e.message);
+            }
+        });
+
+        async function pollStatus() {
+            try {
+                const resp = await fetch('/status');
+                const data = await resp.json();
+                const statusText = document.getElementById('status-text');
+                const loginBtn = document.getElementById('login-button-container');
+                if (data.authenticated) {
+                    const name = data.name || data.email || 'Staff';
+                    statusText.className = 'text-xl font-bold text-green-400';
+                    statusText.textContent = `✅ System Active - Logged in as ${escapeHtml(name)}`;
+                    loginBtn.innerHTML = '';
+                } else {
+                    statusText.className = 'text-xl font-bold text-yellow-400';
+                    statusText.textContent = '⏳ Waiting for Staff Login';
+                    loginBtn.innerHTML = `<a href="/login"
+                        class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition duration-200 shadow-lg">
+                        Log in with Frame.io
+                    </a>`;
+                }
+            } catch (e) {
+                console.error('Status poll error:', e);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function checkConfigStatus() {
+            try {
+                const resp = await fetch('/api/setup/status');
+                const data = await resp.json();
+                const banner = document.getElementById('incomplete-config-banner');
+                if (data.setup_mode && banner) {
+                    banner.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error('Config status check error:', e);
+            }
+        }
+
+        document.getElementById('shutdown-btn').addEventListener('click', async () => {
+            const confirmed = confirm('Are you sure you want to stop the exhibition server?');
+            if (!confirmed) return;
+            const btn = document.getElementById('shutdown-btn');
+            btn.disabled = true;
+            btn.textContent = 'Shutting down...';
+            try {
+                const resp = await fetch('/api/shutdown', { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    document.body.innerHTML = `
+                        <div class="max-w-4xl mx-auto px-4 py-20 text-center">
+                            <h1 class="text-4xl font-bold text-green-400 mb-4">Server has shut down safely.</h1>
+                            <p class="text-gray-300 text-lg">You can now close this browser window.</p>
+                        </div>`;
+                } else {
+                    throw new Error(data.detail || 'Shutdown failed');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = '🛑 Shutdown Server';
+                alert('Shutdown error: ' + e.message);
+            }
+        });
+
+        const timecodeInput = document.getElementById('qr-search-timecode');
+        const videoInput = document.getElementById('qr-search-video');
+        const seqnumInput = document.getElementById('qr-search-seqnum');
+        timecodeInput.addEventListener('input', () => {
+            fetchQRHistory(timecodeInput.value, videoInput.value, seqnumInput.value);
+        });
+        videoInput.addEventListener('input', () => {
+            fetchQRHistory(timecodeInput.value, videoInput.value, seqnumInput.value);
+        });
+        seqnumInput.addEventListener('input', () => {
+            fetchQRHistory(timecodeInput.value, videoInput.value, seqnumInput.value);
+        });
+
+        async function loadQueue() {
+            try {
+                const resp = await fetch('/api/queue');
+                const data = await resp.json();
+                const queueList = document.getElementById('queue-list');
+                const queueStatus = document.getElementById('queue-status');
+                if (!queueList || !queueStatus) return;
+                queueStatus.textContent = 'Idle';
+                queueStatus.className = 'badge badge-idle text-xs';
+                let html = '';
+                (data.queue || []).forEach(item => {
+                    html += `<div class="queue-item queue-waiting bg-gray-700 bg-opacity-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-300 truncate">${escapeHtml(item.name)}</p>
+                                <span class="badge badge-queuing mt-1">Queuing</span>
+                                ${item.size_human ? `<p class="text-xs text-gray-400 mt-1">${escapeHtml(item.size_human)}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                if (!html) {
+                    html = '<p class="text-gray-500 text-sm text-center py-2">No files in queue</p>';
+                } else {
+                    html = '<div class="space-y-2">' + html + '</div>';
+                }
+                queueList.innerHTML = html;
+            } catch (e) {
+                console.error('Queue load error:', e);
+            }
+        }
+
+        async function loadUploading() {
+            try {
+                const resp = await fetch('/api/uploading');
+                const data = await resp.json();
+                const uploadingList = document.getElementById('uploading-list');
+                const uploadingStatus = document.getElementById('uploading-status');
+                if (!uploadingList || !uploadingStatus) return;
+                if (data.name) {
+                    uploadingStatus.textContent = 'Uploading';
+                    uploadingStatus.className = 'badge badge-uploading text-xs';
+                    let html = `<div class="queue-item queue-uploading bg-yellow-900 bg-opacity-30 rounded-lg p-3 border border-yellow-600">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-yellow-100 truncate">${escapeHtml(data.name)}</p>
+                                <span class="badge badge-uploading mt-1">Uploading</span>
+                                ${data.size_human ? `<p class="text-xs text-yellow-200 mt-1">${escapeHtml(data.size_human)}</p>` : ''}
+                            </div>
+                            ${data.qr_path ? `<img src="${data.qr_path}" class="qr-thumb-small ml-2" />` : ''}
+                        </div>
+                    </div>`;
+                    uploadingList.innerHTML = html;
+                } else {
+                    uploadingStatus.textContent = 'Idle';
+                    uploadingStatus.className = 'badge badge-idle text-xs';
+                    uploadingList.innerHTML = '<p class="text-gray-500 text-sm text-center py-2">No upload in progress</p>';
+                }
+            } catch (e) {
+                console.error('Uploading load error:', e);
+            }
+        }
+
+        // Load current display message on page load
+        async function loadDisplayMessage() {
+            try {
+                const resp = await fetch('/api/display-message');
+                const data = await resp.json();
+                const input = document.getElementById('display-message-input');
+                if (input && data.display_message) {
+                    input.value = data.display_message;
+                }
+            } catch (e) {
+                console.error('Load display message error:', e);
+            }
+        }
+
+        // Handle update message button click
+        document.getElementById('update-message-btn').addEventListener('click', async () => {
+            const input = document.getElementById('display-message-input');
+            const feedback = document.getElementById('message-feedback');
+            const message = input.value.trim();
+            
+            if (!message) {
+                feedback.textContent = 'Message cannot be empty';
+                feedback.className = 'text-xs text-center mt-2 text-yellow-400';
+                return;
+            }
+            
+            feedback.textContent = 'Updating...';
+            feedback.className = 'text-xs text-center mt-2 text-yellow-400';
+            
+            try {
+                const resp = await fetch('/api/display-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message }),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    feedback.textContent = '✓ Message updated!';
+                    feedback.className = 'text-xs text-center mt-2 text-green-400';
+                    setTimeout(() => {
+                        feedback.textContent = '';
+                    }, 2000);
+                } else {
+                    feedback.textContent = '✗ Failed to update';
+                    feedback.className = 'text-xs text-center mt-2 text-red-400';
+                }
+            } catch (e) {
+                console.error('Update display message error:', e);
+                feedback.textContent = '✗ Error: ' + e.message;
+                feedback.className = 'text-xs text-center mt-2 text-red-400';
+            }
+        });
+
+        pollStatus();
+        pollStats();
+        fetchQRHistory();
+        checkOverrideStatus();
+        checkConfigStatus();
+        loadQueue();
+        loadUploading();
+        loadDisplayMessage();
+        setInterval(pollStats, 2000);
+        setInterval(pollStatus, 5000);
+        setInterval(() => fetchQRHistory(timecodeInput.value, videoInput.value, seqnumInput.value), 10000);
+        setInterval(checkOverrideStatus, 2000);
+        setInterval(checkConfigStatus, 3000);
+        setInterval(loadQueue, 1000);
+        setInterval(loadUploading, 1000);
+    </script>
+</body>
+</html>

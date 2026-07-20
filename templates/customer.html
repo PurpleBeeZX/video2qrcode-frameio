@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Display</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+        .qr-container {
+            transition: all 0.3s ease;
+        }
+        .qr-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-in;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .pulse-slow {
+            animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-8">
+
+    <!-- Main Display Area -->
+    <div class="text-center max-w-3xl w-full">
+        <!-- Header -->
+        <div class="mb-12">
+            <h1 class="text-5xl font-bold text-white mb-3">Scan to Download</h1>
+            <p id="display-message" class="text-xl text-gray-300">Point your camera at the QR code to access your video</p>
+        </div>
+
+        <!-- QR Code Display -->
+        <div id="qr-display" class="qr-container flex items-center justify-center mb-12 min-h-[500px]">
+            <!-- Loading State -->
+            <div id="loading-state" class="text-center">
+                <div class="inline-block w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p class="text-gray-400 pulse-slow">Waiting for video to be uploaded...</p>
+            </div>
+
+            <!-- QR Code Image (hidden initially) -->
+            <div id="qr-image-container" class="hidden w-full">
+                <div class="flex flex-row items-center justify-center gap-8">
+                    <!-- Left: Sequence Number + Info -->
+                    <div class="flex flex-col items-center justify-center text-center">
+                        <p id="video-seqnum" class="text-8xl font-bold text-blue-400 mb-4"></p>
+                        <div id="video-info" class="px-4">
+                            <p id="video-name" class="text-2xl font-semibold text-white mb-2 break-words"></p>
+                            <p id="video-timecode" class="text-lg text-gray-300"></p>
+                        </div>
+                    </div>
+
+                    <!-- Right: QR Code Image -->
+                    <div class="flex-shrink-0">
+                        <img id="qr-image" src="" alt="QR Code" class="qr-image fade-in bg-white p-8">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Banner -->
+        <div id="status-banner" class="bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg p-4 mb-8 border border-gray-700">
+            <p id="status-text" class="text-gray-300 text-sm">
+                <span class="inline-block w-2 h-2 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                Ready for upload
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-gray-500 text-sm">
+            <p>Ask our staff if you need assistance</p>
+        </div>
+    </div>
+
+    <script>
+        // Poll for QR code updates every 1.5 seconds
+        async function pollQR() {
+            try {
+                // Fetch display message
+                const msgResp = await fetch('/api/display-message');
+                const msgData = await msgResp.json();
+                const displayMessageEl = document.getElementById('display-message');
+                if (msgData.display_message) {
+                    displayMessageEl.textContent = msgData.display_message;
+                }
+
+                // Fetch QR data
+                const resp = await fetch('/api/customer/qr');
+                const data = await resp.json();
+                const qrImage = document.getElementById('qr-image');
+                const qrContainer = document.getElementById('qr-image-container');
+                const loadingState = document.getElementById('loading-state');
+                const statusText = document.getElementById('status-text');
+                const videoSeqNum = document.getElementById('video-seqnum');
+                const videoName = document.getElementById('video-name');
+                const videoTimecode = document.getElementById('video-timecode');
+                const videoInfo = document.getElementById('video-info');
+
+                if (data.qr_path) {
+                    // QR code is available
+                    const currentQR = qrImage.getAttribute('data-current-qr');
+                    if (currentQR !== data.qr_path) {
+                        qrImage.src = data.qr_path;
+                        qrImage.setAttribute('data-current-qr', data.qr_path);
+                        loadingState.classList.add('hidden');
+                        qrContainer.classList.remove('hidden');
+                        
+                        // Update video info
+                        if (data.video_name || data.seqnum) {
+                            if (data.seqnum) {
+                                videoSeqNum.textContent = `#${data.seqnum}`;
+                                videoSeqNum.classList.remove('hidden');
+                            } else {
+                                videoSeqNum.classList.add('hidden');
+                            }
+                            videoName.textContent = data.video_name || '';
+                            videoTimecode.textContent = data.timecode_human ? `Uploaded: ${data.timecode_human}` : '';
+                            videoInfo.classList.remove('hidden');
+                        } else {
+                            videoInfo.classList.add('hidden');
+                        }
+                        
+                        // Re-trigger animation
+                        qrImage.classList.remove('fade-in');
+                        void qrImage.offsetWidth; // Trigger reflow
+                        qrImage.classList.add('fade-in');
+                    }
+
+                    // Update status based on state
+                    if (data.is_uploading) {
+                        statusText.innerHTML = `
+                            <span class="inline-block w-2 h-2 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                            Uploading video...
+                        `;
+                    } else if (data.manual_override) {
+                        statusText.innerHTML = `
+                            <span class="inline-block w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                            Screen locked - Showing selected video
+                        `;
+                    } else {
+                        statusText.innerHTML = `
+                            <span class="inline-block w-2 h-2 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
+                            Latest video ready to scan
+                        `;
+                    }
+                } else {
+                    // No QR code available
+                    loadingState.classList.remove('hidden');
+                    qrContainer.classList.add('hidden');
+                    videoInfo.classList.add('hidden');
+                    statusText.innerHTML = `
+                        <span class="inline-block w-2 h-2 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                        Waiting for video to be uploaded...
+                    `;
+                }
+            } catch (e) {
+                console.error('Poll error:', e);
+            }
+        }
+
+        // Poll on load and every 1.5 seconds
+        pollQR();
+        setInterval(pollQR, 1500);
+    </script>
+</body>
+</html>
