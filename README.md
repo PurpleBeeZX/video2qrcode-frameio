@@ -1,0 +1,6 @@
+- This is my internship project.
+- The aim is to automatically turn recordings into qrcodes.
+- The app is using frame io as storage.
+- I am using vibe coding.
+- Please read the installation guide for installation
+- Please read the user guide for usage.
