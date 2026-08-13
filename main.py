@@ -384,7 +384,7 @@ config_instance = DynamicConfig(
     failed_folder=CFG['folders']['failed'],
     qr_codes_folder=CFG['folders']['qr_codes'],
     processing_folder=CFG['folders'].get('processing', 'data/processing_folder'),
-    share_expiration_days=CFG.get('share', {}).get('expiration_days', 7),
+    share_expiration_days=int(CFG.get('share', {}).get('expiration_days', 7) or 7),
 )
 
 # Backward-compatible path variables
@@ -794,7 +794,8 @@ async def create_share_link(asset_id: str) -> Optional[str]:
     aid = await get_account_id()
     pid = await get_project_id()
     cfg = get_config()
-    expires_at = (datetime.now(timezone.utc) + timedelta(days=int(cfg.share_expiration_days))).isoformat()
+    share_days = int(cfg.share_expiration_days) if cfg.share_expiration_days else 7
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=share_days)).isoformat()
     # Frame.io V4 API expects ISO 8601 format with 'Z' suffix for UTC
     expires_at = expires_at.replace('+00:00', 'Z')
 
@@ -2120,7 +2121,7 @@ async def save_config(payload: dict):
             processed_folder=payload['folders']['processed'],
             failed_folder=payload['folders']['failed'],
             qr_codes_folder=payload['folders']['qr_codes'],
-            share_expiration_days=payload.get('share', {}).get('expiration_days', 7),
+            share_expiration_days=int(payload.get('share', {}).get('expiration_days', 7) or 7),
         )
         WATCH_PATH = config_instance.watch_path
         PROCESSED_PATH = config_instance.processed_path
@@ -2270,7 +2271,7 @@ async def setup_initialize(payload: dict):
             processed_folder=new_config['folders']['processed'],
             failed_folder=new_config['folders']['failed'],
             qr_codes_folder=new_config['folders']['qr_codes'],
-            share_expiration_days=new_config.get('share', {}).get('expiration_days', 7),
+            share_expiration_days=int(new_config.get('share', {}).get('expiration_days', 7) or 7),
         )
         WATCH_PATH = config_instance.watch_path
         PROCESSED_PATH = config_instance.processed_path

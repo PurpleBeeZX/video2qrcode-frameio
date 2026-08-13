@@ -52,6 +52,9 @@ build_config = {
         "failed": os.getenv("FRAMEIO_FAILED_FOLDER", "data/failed_folder"),
         "qr_codes": os.getenv("FRAMEIO_QR_CODES_FOLDER", "data/qr_codes"),
     },
+    "share": {
+        "expiration_days": 7,
+    },
     "oauth": {
         "redirect_uri": os.getenv("FRAMEIO_REDIRECT_URI", "https://localhost:8000/callback"),
         "auth_url": os.getenv("FRAMEIO_AUTH_URL", "https://ims-na1.adobelogin.com/ims/authorize/v2"),
